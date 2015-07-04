@@ -13,7 +13,6 @@
 		C5AB32BF1A8F9091002258B6 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C5AB32BE1A8F9091002258B6 /* AppDelegate.m */; };
 		C5AB32C11A8F9091002258B6 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = C5AB32C01A8F9091002258B6 /* main.m */; };
 		C5AB32C31A8F9091002258B6 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C5AB32C21A8F9091002258B6 /* Images.xcassets */; };
-		C5AB32E71A8F9B4E002258B6 /* GCDAsyncSocket.m in Sources */ = {isa = PBXBuildFile; fileRef = C5AB32E41A8F9B4E002258B6 /* GCDAsyncSocket.m */; };
 		C5AB32E81A8F9B4E002258B6 /* GCDAsyncUdpSocket.m in Sources */ = {isa = PBXBuildFile; fileRef = C5AB32E61A8F9B4E002258B6 /* GCDAsyncUdpSocket.m */; };
 		C5E0271D1AA6435E0032F2E9 /* black_alt@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = C5E027101AA6435E0032F2E9 /* black_alt@2x.png */; };
 		C5E0271E1AA6435E0032F2E9 /* black@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = C5E027111AA6435E0032F2E9 /* black@2x.png */; };
@@ -43,8 +42,6 @@
 		C5AB32C01A8F9091002258B6 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		C5AB32C21A8F9091002258B6 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
 		C5AB32C51A8F9091002258B6 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
-		C5AB32E31A8F9B4E002258B6 /* GCDAsyncSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GCDAsyncSocket.h; sourceTree = "<group>"; };
-		C5AB32E41A8F9B4E002258B6 /* GCDAsyncSocket.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GCDAsyncSocket.m; sourceTree = "<group>"; };
 		C5AB32E51A8F9B4E002258B6 /* GCDAsyncUdpSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GCDAsyncUdpSocket.h; sourceTree = "<group>"; };
 		C5AB32E61A8F9B4E002258B6 /* GCDAsyncUdpSocket.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GCDAsyncUdpSocket.m; sourceTree = "<group>"; };
 		C5E027101AA6435E0032F2E9 /* black_alt@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "black_alt@2x.png"; sourceTree = "<group>"; };
@@ -115,8 +112,6 @@
 		C5AB32BA1A8F9091002258B6 /* AnyBar */ = {
 			isa = PBXGroup;
 			children = (
-				C5AB32E31A8F9B4E002258B6 /* GCDAsyncSocket.h */,
-				C5AB32E41A8F9B4E002258B6 /* GCDAsyncSocket.m */,
 				C5AB32E51A8F9B4E002258B6 /* GCDAsyncUdpSocket.h */,
 				C5AB32E61A8F9B4E002258B6 /* GCDAsyncUdpSocket.m */,
 				C5AB32BD1A8F9091002258B6 /* AppDelegate.h */,
@@ -227,7 +222,6 @@
 			files = (
 				C03A3D431AA7A6540030B668 /* AnyBarApp.m in Sources */,
 				C5AB32E81A8F9B4E002258B6 /* GCDAsyncUdpSocket.m in Sources */,
-				C5AB32E71A8F9B4E002258B6 /* GCDAsyncSocket.m in Sources */,
 				C5AB32C11A8F9091002258B6 /* main.m in Sources */,
 				C5AB32BF1A8F9091002258B6 /* AppDelegate.m in Sources */,
 			);
