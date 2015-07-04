@@ -8,224 +8,162 @@
 
 #import "AppDelegate.h"
 
-@interface AppDelegate()
+static NSString * const kAnyBarPortEnvironmentVariable = @"ANYBAR_PORT";
+static NSString * const kAnyBarPortDefaultValue = @"1738";
 
-@property (weak, nonatomic) IBOutlet NSWindow *window;
-@property (strong, nonatomic) NSStatusItem *statusItem;
-@property (strong, nonatomic) GCDAsyncUdpSocket *udpSocket;
-@property (strong, nonatomic) NSString *imageName;
-@property (assign, nonatomic) BOOL dark;
-@property (assign, nonatomic) int udpPort;
+@interface AppDelegate ()
+
+@property (nonatomic) BOOL darkMode;
+@property (nonatomic) NSString *imageName;
+@property (nonatomic) NSStatusItem *statusItem;
+@property (nonatomic) GCDAsyncUdpSocket *udpSocket;
 
 @end
 
 @implementation AppDelegate
 
--(void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-    _udpPort = -1;
-    _imageName = @"white";
-    self.statusItem = [self initializeStatusBarItem];
+- (void)applicationDidFinishLaunching:(NSNotification *)aNotification
+{
+    int udpPort = -1;
+    self.imageName = @"white";
+    self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
+    self.statusItem.button.alternateImage = [NSImage imageNamed:@"black_alt"];
     [self refreshDarkMode];
 
     @try {
-        _udpPort = [self getUdpPort];
-        _udpSocket = [self initializeUdpSocket: _udpPort];
+        udpPort = [self getUdpPort];
+        self.udpSocket = [self initializeUdpSocket:udpPort];
     }
-    @catch(NSException *ex) {
+    @catch (NSException *ex) {
         NSLog(@"Error: %@: %@", ex.name, ex.reason);
-        _statusItem.button.image = [NSImage imageNamed:@"exclamation@2x.png"];
+        self.statusItem.button.image = [NSImage imageNamed:@"exclamation"];
     }
     @finally {
-        NSString *portTitle = [NSString stringWithFormat:@"UDP port: %@",
-                               _udpPort >= 0 ? [NSNumber numberWithInt:_udpPort] : @"unavailable"];
-        NSString *quitTitle = @"Quit";
-        _statusItem.menu = [self initializeStatusBarMenu:@{
-                                                           portTitle: [NSValue valueWithPointer:nil],
-                                                           quitTitle: [NSValue valueWithPointer:@selector(terminate:)]
-                                                           }];
+        NSString *portTitle = [NSString stringWithFormat:@"UDP port: %@", udpPort >= 0 ? @(udpPort) : @"unavailable"];
+        self.statusItem.menu = [NSMenu new];
+        [self.statusItem.menu addItemWithTitle:portTitle action:nil keyEquivalent:@""];
+        [self.statusItem.menu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@""];
     }
 
-    NSDistributedNotificationCenter *center = [NSDistributedNotificationCenter defaultCenter];
-    [center addObserver: self
-               selector: @selector(refreshDarkMode)
-                   name: @"AppleInterfaceThemeChangedNotification"
-                 object: nil];
+    [[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(refreshDarkMode) name:@"AppleInterfaceThemeChangedNotification" object:nil];
 }
 
--(void)applicationWillTerminate:(NSNotification *)aNotification {
-    [self shutdownUdpSocket: _udpSocket];
-    _udpSocket = nil;
+- (void)applicationWillTerminate:(NSNotification *)aNotification
+{
+    [self.udpSocket close];
+    self.udpSocket = nil;
 
-    [[NSStatusBar systemStatusBar] removeStatusItem:_statusItem];
-    _statusItem = nil;
+    [[NSStatusBar systemStatusBar] removeStatusItem:self.statusItem];
+    self.statusItem = nil;
 }
 
--(int) getUdpPort {
-    int port = [self readIntFromEnvironmentVariable:@"ANYBAR_PORT" usingDefault:@"1738"];
+- (int)getUdpPort
+{
+    int port = -1;
 
+    NSString *envStr = [[[NSProcessInfo processInfo] environment] objectForKey:kAnyBarPortEnvironmentVariable];
+    if (!envStr) {
+        envStr = kAnyBarPortDefaultValue;
+    }
+    
+    NSNumberFormatter *nFormatter = [NSNumberFormatter new];
+    nFormatter.numberStyle = NSNumberFormatterDecimalStyle;
+    NSNumber *number = [nFormatter numberFromString:envStr];
+    
+    if (!number) {
+        @throw([NSException exceptionWithName:@"Argument Exception" reason:[NSString stringWithFormat:@"Parsing integer from %@ failed", envStr] userInfo:@{ @"argument":envStr }]);
+    }
+    
+    port = [number intValue];
+    
     if (port < 0 || port > 65535) {
-        @throw([NSException exceptionWithName:@"Argument Exception"
-                            reason:[NSString stringWithFormat:@"UDP Port range is invalid: %d", port]
-                            userInfo:@{@"argument": [NSNumber numberWithInt:port]}]);
-
+        @throw([NSException exceptionWithName:@"Argument Exception" reason:[NSString stringWithFormat:@"UDP Port is invalid: %d", port] userInfo:@{ @"argument":@(port) }]);
     }
 
     return port;
 }
 
-- (void)refreshDarkMode {
-    NSString *osxMode = [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleInterfaceStyle"];
-    if ([osxMode isEqualToString:@"Dark"])
-        self.dark = YES;
-    else
-        self.dark = NO;
-    [self setImage:_imageName];
-}
+- (GCDAsyncUdpSocket *)initializeUdpSocket:(int)port
+{
+    GCDAsyncUdpSocket *udpSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:dispatch_get_main_queue()];
 
--(GCDAsyncUdpSocket*)initializeUdpSocket:(int)port {
     NSError *error = nil;
-    GCDAsyncUdpSocket *udpSocket = [[GCDAsyncUdpSocket alloc]
-                                    initWithDelegate:self
-                                    delegateQueue:dispatch_get_main_queue()];
-
-    [udpSocket bindToPort:port error:&error];
-    if (error) {
-        @throw([NSException exceptionWithName:@"UDP Exception"
-                            reason:[NSString stringWithFormat:@"Binding to %d failed", port]
-                            userInfo:@{@"error": error}]);
+    if ([udpSocket bindToPort:port error:&error] == NO) {
+        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Binding to port %d failed", port] userInfo:@{ @"error":error }]);
     }
 
-    [udpSocket beginReceiving:&error];
-    if (error) {
-        @throw([NSException exceptionWithName:@"UDP Exception"
-                            reason:[NSString stringWithFormat:@"Receiving from %d failed", port]
-                            userInfo:@{@"error": error}]);
+    if ([udpSocket beginReceiving:&error] == NO) {
+        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Receiving from port %d failed", port] userInfo:@{ @"error":error }]);
     }
 
     return udpSocket;
 }
 
--(void)shutdownUdpSocket:(GCDAsyncUdpSocket*)sock {
-    if (sock != nil) {
-        [sock close];
+- (void)udpSocket:(GCDAsyncUdpSocket *)sock didReceiveData:(NSData *)data fromAddress:(NSData *)address withFilterContext:(id)filterContext
+{
+    NSString *message = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    if ([message isEqualToString:@"quit"]) {
+        [[NSApplication sharedApplication] terminate:nil];
+    }
+    else {
+        [self setImage:message];
     }
 }
 
--(void)udpSocket:(GCDAsyncUdpSocket *)sock didReceiveData:(NSData *)data
-      fromAddress:(NSData *)address withFilterContext:(id)filterContext {
-    [self processUdpSocketMsg:sock withData:data fromAddress:address];
+- (void)refreshDarkMode
+{
+    NSString *mode = [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleInterfaceStyle"];
+    self.darkMode = [mode isEqualToString:@"Dark"] ? YES : NO;
+    [self setImage:self.imageName];
 }
 
--(NSImage*)tryImage:(NSString *)path {
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    if ([fileManager fileExistsAtPath:path])
-        return [[NSImage alloc] initWithContentsOfFile:path];
-    else
-        return nil;
-}
-
--(NSString*)bundledImagePath:(NSString *)name {
-    return [[NSBundle mainBundle] pathForResource:name ofType:@"png"];
-}
-
--(NSString*)homedirImagePath:(NSString *)name {
+- (NSString *)homedirImagePath:(NSString *)name
+{
     return [NSString stringWithFormat:@"%@/%@/%@.png", NSHomeDirectory(), @".AnyBar", name];
 }
 
--(void)setImage:(NSString*) name {
-
+- (void)setImage:(NSString *)name
+{
     NSImage *image = nil;
-    if (_dark)
-        image = [self tryImage:[self bundledImagePath:[name stringByAppendingString:@"_alt@2x"]]];
-    if (!image)
-        image = [self tryImage:[self bundledImagePath:[name stringByAppendingString:@"@2x"]]];
-    if (_dark && !image)
-        image = [self tryImage:[self homedirImagePath:[name stringByAppendingString:@"_alt"]]];
-    if (_dark && !image)
-        image = [self tryImage:[self homedirImagePath:[name stringByAppendingString:@"_alt@2x"]]];
-    if (!image)
-        image = [self tryImage:[self homedirImagePath:[name stringByAppendingString:@"@2x"]]];
-    if (!image)
-        image = [self tryImage:[self homedirImagePath:name]];
+    if (self.darkMode) {
+        image = [NSImage imageNamed:[name stringByAppendingString:@"_alt"]];
+    }
     if (!image) {
-        if (_dark)
-            image = [self tryImage:[self bundledImagePath:@"question_alt@2x"]];
-        else
-            image = [self tryImage:[self bundledImagePath:@"question@2x"]];
+        image = [NSImage imageNamed:name];
+    }
+    if (self.darkMode && !image) {
+        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"_alt@2x"]]];
+    }
+    if (self.darkMode && !image) {
+        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"_alt"]]];
+    }
+    if (!image) {
+        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"@2x"]]];
+    }
+    if (!image) {
+        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:name]];
+    }
+    if (!image) {
+        NSString *questionImageName = self.darkMode ? @"question_alt" : @"question";
+        image = [NSImage imageNamed:questionImageName];
         NSLog(@"Cannot find image '%@'", name);
     }
 
-    _statusItem.button.image = image;
-    _imageName = name;
+    self.statusItem.button.image = image;
+    self.imageName = name;
 }
 
--(void)processUdpSocketMsg:(GCDAsyncUdpSocket *)sock withData:(NSData *)data
-    fromAddress:(NSData *)address {
-    NSString *msg = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-
-    if ([msg isEqualToString:@"quit"])
-        [[NSApplication sharedApplication] terminate:nil];
-    else
-        [self setImage:msg];
+- (id)osaImageBridge
+{
+    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), self.imageName);
+    return self.imageName;
 }
 
--(NSStatusItem*) initializeStatusBarItem {
-    NSStatusItem *statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
-    statusItem.button.alternateImage = [NSImage imageNamed:@"black_alt"];
-    return statusItem;
-}
-
--(NSMenu*) initializeStatusBarMenu:(NSDictionary*)menuDictionary {
-    NSMenu *menu = [[NSMenu alloc] init];
-
-    [menuDictionary enumerateKeysAndObjectsUsingBlock:^(NSString* key, NSValue* val, BOOL *stop) {
-        SEL action = nil;
-        [val getValue:&action];
-        [menu addItemWithTitle:key action:action keyEquivalent:@""];
-    }];
-
-    return menu;
-}
-
--(int) readIntFromEnvironmentVariable:(NSString*) envVariable usingDefault:(NSString*) defStr {
-    int intVal = -1;
-
-    NSString *envStr = [[[NSProcessInfo processInfo]
-                         environment] objectForKey:envVariable];
-    if (!envStr) {
-        envStr = defStr;
-    }
-
-    NSNumberFormatter *nFormatter = [[NSNumberFormatter alloc] init];
-    nFormatter.numberStyle = NSNumberFormatterDecimalStyle;
-    NSNumber *number = [nFormatter numberFromString:envStr];
-
-    if (!number) {
-        @throw([NSException exceptionWithName:@"Argument Exception"
-                            reason:[NSString stringWithFormat:@"Parsing integer from %@ failed", envStr]
-                            userInfo:@{@"argument": envStr}]);
-
-    }
-
-    intVal = [number intValue];
-
-    return intVal;
-}
-
--(id) osaImageBridge {
-    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), _imageName);
-
-    return _imageName;
-}
-
-
--(void) setOsaImageBridge:(id)imgName {
+- (void)setOsaImageBridge:(id)imgName
+{
     NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), imgName);
-
-    _imageName = (NSString *)imgName;
-
-    [self setImage:_imageName];
+    self.imageName = (NSString *)imgName;
+    [self setImage:self.imageName];
 }
 
 @end
-

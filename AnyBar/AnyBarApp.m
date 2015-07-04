@@ -10,13 +10,15 @@
 
 @implementation AnyBarApp
 
--(id) osaImage {
-    AppDelegate *delegate = (AppDelegate*)self.delegate;
+- (id)osaImage
+{
+    AppDelegate *delegate = (AppDelegate *)self.delegate;
     return [delegate osaImageBridge];
 }
 
--(void) setOsaImage:(id)imgName {
-    AppDelegate *delegate = (AppDelegate*)self.delegate;
+- (void)setOsaImage:(id)imgName
+{
+    AppDelegate *delegate = (AppDelegate *)self.delegate;
     [delegate setOsaImageBridge:imgName];
 }
 
