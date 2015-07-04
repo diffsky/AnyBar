@@ -33,7 +33,7 @@
     }
     @catch(NSException *ex) {
         NSLog(@"Error: %@: %@", ex.name, ex.reason);
-        _statusItem.image = [NSImage imageNamed:@"exclamation@2x.png"];
+        _statusItem.button.image = [NSImage imageNamed:@"exclamation@2x.png"];
     }
     @finally {
         NSString *portTitle = [NSString stringWithFormat:@"UDP port: %@",
@@ -155,7 +155,7 @@
         NSLog(@"Cannot find image '%@'", name);
     }
 
-    _statusItem.image = image;
+    _statusItem.button.image = image;
     _imageName = name;
 }
 
@@ -171,8 +171,7 @@
 
 -(NSStatusItem*) initializeStatusBarItem {
     NSStatusItem *statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
-    statusItem.alternateImage = [NSImage imageNamed:@"black_alt@2x.png"];
-    statusItem.highlightMode = YES;
+    statusItem.button.alternateImage = [NSImage imageNamed:@"black_alt"];
     return statusItem;
 }
 
