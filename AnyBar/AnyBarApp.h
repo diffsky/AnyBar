@@ -18,5 +18,7 @@
 //
 - (id)osaImage;
 - (void)setOsaImage:(id)imgName;
+- (id)osaText;
+- (void)setOsaText:(id)text;
 
 @end

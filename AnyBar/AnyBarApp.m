@@ -22,4 +22,16 @@
     [delegate setOsaImageBridge:imgName];
 }
 
+- (id)osaText
+{
+    AppDelegate *delegate = (AppDelegate *)self.delegate;
+    return [delegate osaTextBridge];
+}
+
+- (void)setOsaText:(id)text
+{
+    AppDelegate *delegate = (AppDelegate *)self.delegate;
+    [delegate setOsaTextBridge:text];
+}
+
 @end

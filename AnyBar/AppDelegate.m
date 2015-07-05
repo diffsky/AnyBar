@@ -13,7 +13,9 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
 
 @interface AppDelegate ()
 
+@property (nonatomic) int udpPort;
 @property (nonatomic) BOOL darkMode;
+@property (nonatomic) NSString *text;
 @property (nonatomic) NSString *imageName;
 @property (nonatomic) NSString *alertMessage;
 @property (nonatomic) NSString *alertReason;
@@ -26,9 +28,11 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
-    int udpPort = -1;
+    self.udpPort = -1;
     self.imageName = @"white";
+    self.text = @"";
     self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
+    self.statusItem.button.font = [NSFont systemFontOfSize:12];
     self.statusItem.button.alternateImage = [NSImage imageNamed:@"black_alt"];
     [self refreshDarkMode];
 
@@ -36,8 +40,8 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
     self.alertReason  = nil;
     
     @try {
-        udpPort = [self getUdpPort];
-        self.udpSocket = [self initializeUdpSocket:udpPort];
+        self.udpPort = [self getUdpPort];
+        self.udpSocket = [self initializeUdpSocket];
     }
     @catch (NSException *ex) {
         NSLog(@"Error: %@: %@", ex.name, ex.reason);
@@ -51,7 +55,7 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
             [self.statusItem.menu addItemWithTitle:@"Show Error" action:@selector(showErrorAlert:) keyEquivalent:@""];
         }
         else {
-            NSString *portTitle = [NSString stringWithFormat:@"UDP port: %d", udpPort];
+            NSString *portTitle = [NSString stringWithFormat:@"UDP port: %d", self.udpPort];
             [self.statusItem.menu addItemWithTitle:portTitle action:nil keyEquivalent:@""];
         }
         [self.statusItem.menu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@""];
@@ -109,17 +113,17 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
     return port;
 }
 
-- (GCDAsyncUdpSocket *)initializeUdpSocket:(int)port
+- (GCDAsyncUdpSocket *)initializeUdpSocket
 {
     GCDAsyncUdpSocket *udpSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:dispatch_get_main_queue()];
 
     NSError *error = nil;
-    if ([udpSocket bindToPort:port error:&error] == NO) {
-        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Binding to port %d failed.", port] userInfo:@{ @"error":error }]);
+    if ([udpSocket bindToPort:self.udpPort error:&error] == NO) {
+        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Binding to port %d failed.", self.udpPort] userInfo:@{ @"error":error }]);
     }
 
     if ([udpSocket beginReceiving:&error] == NO) {
-        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Receiving from port %d failed.", port] userInfo:@{ @"error":error }]);
+        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Receiving from port %d failed.", self.udpPort] userInfo:@{ @"error":error }]);
     }
 
     return udpSocket;
@@ -128,12 +132,39 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
 - (void)udpSocket:(GCDAsyncUdpSocket *)sock didReceiveData:(NSData *)data fromAddress:(NSData *)address withFilterContext:(id)filterContext
 {
     NSString *message = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    if ([message isEqualToString:@"quit"]) {
+    NSCharacterSet *whitespaceSet = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+    message = [message stringByTrimmingCharactersInSet:whitespaceSet];
+
+    if (message == nil || [message isEqualToString:@""]) {
+        NSLog(@"Empty message received on port %d.", self.udpPort);
+        return;
+    }
+    
+    NSInteger locationOfFirstSpace = [message rangeOfString:@" "].location;
+    NSString *imageName = message;
+    NSString *text = @"";
+    self.statusItem.button.imagePosition = NSImageOnly;
+    
+    if (locationOfFirstSpace != NSNotFound) {
+        imageName = [message substringToIndex:locationOfFirstSpace];
+        text = [message substringFromIndex:locationOfFirstSpace];
+        text = [text stringByTrimmingCharactersInSet:whitespaceSet];
+        self.statusItem.button.imagePosition = NSImageLeft;
+    }
+    
+    if ([imageName isEqualToString:@"quit"]) {
         [[NSApplication sharedApplication] terminate:nil];
     }
-    else {
-        [self setImage:message];
-    }
+
+    // Hack to make statusItem properly resize when a short text message
+    // is set after a long one. Without this, statusItem will stay at the
+    // wider size of the long message until the next time it is updated.
+    [self.statusItem.button setAttributedAlternateTitle:nil];
+    
+    [self setImage:imageName];
+    [self setText:text];
+    [self.statusItem.button setTitle:text];
+    [self.statusItem.button setAttributedAlternateTitle:[[NSAttributedString alloc] initWithString:text attributes:@{ NSForegroundColorAttributeName: NSColor.whiteColor, NSFontAttributeName: [NSFont systemFontOfSize:12] }]];
 }
 
 - (void)refreshDarkMode
@@ -174,7 +205,7 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
         image = [NSImage imageNamed:questionImageName];
         NSLog(@"Cannot find image '%@'", name);
     }
-
+    
     self.statusItem.button.image = image;
     self.imageName = name;
 }
@@ -190,6 +221,19 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
     NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), imgName);
     self.imageName = (NSString *)imgName;
     [self setImage:self.imageName];
+}
+
+- (id)osaTextBridge
+{
+    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), self.text);
+    return self.text;
+}
+
+- (void)setOsaTextBridge:(id)text
+{
+    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), text);
+    self.text = (NSString *)text;
+    [self.statusItem.button setTitle:text];
 }
 
 @end
