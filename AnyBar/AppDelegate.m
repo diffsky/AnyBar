@@ -15,6 +15,8 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
 
 @property (nonatomic) BOOL darkMode;
 @property (nonatomic) NSString *imageName;
+@property (nonatomic) NSString *alertMessage;
+@property (nonatomic) NSString *alertReason;
 @property (nonatomic) NSStatusItem *statusItem;
 @property (nonatomic) GCDAsyncUdpSocket *udpSocket;
 
@@ -30,6 +32,9 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
     self.statusItem.button.alternateImage = [NSImage imageNamed:@"black_alt"];
     [self refreshDarkMode];
 
+    self.alertMessage = nil;
+    self.alertReason  = nil;
+    
     @try {
         udpPort = [self getUdpPort];
         self.udpSocket = [self initializeUdpSocket:udpPort];
@@ -37,11 +42,18 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
     @catch (NSException *ex) {
         NSLog(@"Error: %@: %@", ex.name, ex.reason);
         self.statusItem.button.image = [NSImage imageNamed:@"exclamation"];
+        self.alertMessage = ex.name;
+        self.alertReason  = ex.reason;
     }
     @finally {
-        NSString *portTitle = [NSString stringWithFormat:@"UDP port: %@", udpPort >= 0 ? @(udpPort) : @"unavailable"];
         self.statusItem.menu = [NSMenu new];
-        [self.statusItem.menu addItemWithTitle:portTitle action:nil keyEquivalent:@""];
+        if (self.alertMessage != nil) {
+            [self.statusItem.menu addItemWithTitle:@"Show Error" action:@selector(showErrorAlert:) keyEquivalent:@""];
+        }
+        else {
+            NSString *portTitle = [NSString stringWithFormat:@"UDP port: %d", udpPort];
+            [self.statusItem.menu addItemWithTitle:portTitle action:nil keyEquivalent:@""];
+        }
         [self.statusItem.menu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@""];
     }
 
@@ -55,6 +67,20 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
 
     [[NSStatusBar systemStatusBar] removeStatusItem:self.statusItem];
     self.statusItem = nil;
+}
+
+- (void)showErrorAlert:(NSNotification *)note
+{
+    [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
+    
+    self.alertMessage = (self.alertMessage != nil) ? self.alertMessage : @"Unknown Error";
+    self.alertReason  = (self.alertReason  != nil) ? self.alertReason  : @"";
+    
+    NSAlert *alert = [NSAlert new];
+    [alert setAlertStyle:NSCriticalAlertStyle];
+    [alert setMessageText:self.alertMessage];
+    [alert setInformativeText:self.alertReason];
+    [alert runModal];
 }
 
 - (int)getUdpPort
@@ -71,13 +97,13 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
     NSNumber *number = [nFormatter numberFromString:envStr];
     
     if (!number) {
-        @throw([NSException exceptionWithName:@"Argument Exception" reason:[NSString stringWithFormat:@"Parsing integer from %@ failed", envStr] userInfo:@{ @"argument":envStr }]);
+        @throw([NSException exceptionWithName:@"Argument Exception" reason:[NSString stringWithFormat:@"Parsing integer '%@' from environment variable '%@' failed.", envStr, kAnyBarPortEnvironmentVariable] userInfo:@{ @"argument":envStr }]);
     }
     
     port = [number intValue];
     
     if (port < 0 || port > 65535) {
-        @throw([NSException exceptionWithName:@"Argument Exception" reason:[NSString stringWithFormat:@"UDP Port is invalid: %d", port] userInfo:@{ @"argument":@(port) }]);
+        @throw([NSException exceptionWithName:@"Argument Exception" reason:[NSString stringWithFormat:@"UDP port %d is invalid.", port] userInfo:@{ @"argument":@(port) }]);
     }
 
     return port;
@@ -89,11 +115,11 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
 
     NSError *error = nil;
     if ([udpSocket bindToPort:port error:&error] == NO) {
-        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Binding to port %d failed", port] userInfo:@{ @"error":error }]);
+        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Binding to port %d failed.", port] userInfo:@{ @"error":error }]);
     }
 
     if ([udpSocket beginReceiving:&error] == NO) {
-        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Receiving from port %d failed", port] userInfo:@{ @"error":error }]);
+        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Receiving from port %d failed.", port] userInfo:@{ @"error":error }]);
     }
 
     return udpSocket;
