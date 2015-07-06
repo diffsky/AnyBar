@@ -9,7 +9,7 @@
 #import "AppDelegate.h"
 
 static NSString * const kAnyBarPortEnvironmentVariable = @"ANYBAR_PORT";
-static NSString * const kAnyBarPortDefaultValue = @"1738";
+static const int kAnyBarDefaultPort = 1738;
 
 NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 {
@@ -81,27 +81,19 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 
 - (int)getUdpPort
 {
-    int port = -1;
-
     NSString *envStr = [[[NSProcessInfo processInfo] environment] objectForKey:kAnyBarPortEnvironmentVariable];
-    if (!envStr) {
-        envStr = kAnyBarPortDefaultValue;
-    }
     
-    NSNumberFormatter *nFormatter = [NSNumberFormatter new];
-    nFormatter.numberStyle = NSNumberFormatterDecimalStyle;
-    NSNumber *number = [nFormatter numberFromString:envStr];
+    if (!envStr) { return kAnyBarDefaultPort; }
     
-    if (!number) {
+    int port = -1;
+    NSScanner *scanner = [NSScanner scannerWithString:envStr];
+
+    if (![scanner scanInt:&port]) {
         @throw([NSException exceptionWithName:@"Argument Exception" reason:[NSString stringWithFormat:@"Parsing int '%@' from env var '%@' failed", envStr, kAnyBarPortEnvironmentVariable] userInfo:@{ @"argument":envStr }]);
     }
-    
-    port = [number intValue];
-    
     if (port < 0 || port > 65535) {
         @throw([NSException exceptionWithName:@"Argument Exception" reason:[NSString stringWithFormat:@"UDP port %d is invalid", port] userInfo:@{ @"argument":@(port) }]);
     }
-
     return port;
 }
 
@@ -113,11 +105,9 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     if ([udpSocket bindToPort:self.udpPort error:&error] == NO) {
         @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Binding to port %d failed", self.udpPort] userInfo:@{ @"error":error }]);
     }
-
     if ([udpSocket beginReceiving:&error] == NO) {
         @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Receiving from port %d failed", self.udpPort] userInfo:@{ @"error":error }]);
     }
-
     return udpSocket;
 }
 
