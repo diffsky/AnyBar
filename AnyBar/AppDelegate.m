@@ -11,6 +11,18 @@
 static NSString * const kAnyBarPortEnvironmentVariable = @"ANYBAR_PORT";
 static NSString * const kAnyBarPortDefaultValue = @"1738";
 
+NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
+{
+    return [NSImage imageWithSize:NSMakeSize(19, 19) flipped:NO drawingHandler:^BOOL(NSRect dstRect) {
+        CGContextRef ctx = [NSGraphicsContext.currentContext CGContext];
+        CGContextSetRGBFillColor(ctx, r, g, b, 1);
+        CGContextSetBlendMode(ctx, kCGBlendModeSourceAtop);
+        [baseImage drawInRect:dstRect];
+        CGContextFillRect(ctx, dstRect);
+        return YES;
+    }];
+}
+
 @interface AppDelegate ()
 
 @property (nonatomic) int udpPort;
@@ -33,9 +45,7 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
     
     self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
     self.statusItem.button.font = [NSFont systemFontOfSize:12];
-    self.statusItem.button.alternateImage = [NSImage imageNamed:@"black_alt"];
     self.statusItem.menu = [NSMenu new];
-    [self refreshDarkMode];
 
     @try {
         self.udpPort = [self getUdpPort];
@@ -43,7 +53,7 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
     }
     @catch (NSException *ex) {
         NSLog(@"Error: %@: %@", ex.name, ex.reason);
-        self.statusItem.button.image = [NSImage imageNamed:@"exclamation"];
+        self.imageName = @"exclamation";
         [self.statusItem.menu addItemWithTitle:ex.name action:nil keyEquivalent:@""];
         [self.statusItem.menu addItemWithTitle:ex.reason action:nil keyEquivalent:@""];
         [self.statusItem.menu addItem:[NSMenuItem separatorItem]];
@@ -56,6 +66,7 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
         [self.statusItem.menu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@""];
     }
 
+    [self refreshDarkMode];
     [[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(refreshDarkMode) name:@"AppleInterfaceThemeChangedNotification" object:nil];
 }
 
@@ -163,11 +174,10 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
 - (void)setImage:(NSString *)name
 {
     NSImage *image = nil;
-    if (self.darkMode) {
-        image = [NSImage imageNamed:[name stringByAppendingString:@"_alt"]];
-    }
+    
+    image = [self dotForBuiltIn:name];
     if (!image) {
-        image = [NSImage imageNamed:name];
+        image = [self dotForHex:name];
     }
     if (self.darkMode && !image) {
         image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"_alt@2x"]]];
@@ -182,13 +192,53 @@ static NSString * const kAnyBarPortDefaultValue = @"1738";
         image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:name]];
     }
     if (!image) {
-        NSString *questionImageName = self.darkMode ? @"question_alt" : @"question";
-        image = [NSImage imageNamed:questionImageName];
+        image = [NSImage imageNamed:@"question"];
+        [image setTemplate:YES];
         NSLog(@"Cannot find image '%@'", name);
     }
     
+    // Certain images are template images so they work automatically in dark mode.
+    if ([name isEqualToString:@"white"] || [name isEqualToString:@"black"] ||
+        [name isEqualToString:@"question"] || [name hasSuffix:@"Template"]) {
+        [image setTemplate:YES];
+    }
+    
     self.statusItem.button.image = image;
+    self.statusItem.button.alternateImage = TintImage(image, 1, 1, 1);
     self.imageName = name;
+}
+
+- (NSImage *)dotForBuiltIn:(NSString *)name
+{
+    if ([name isEqualToString:@"white"] || [name isEqualToString:@"black"] ||
+        [name isEqualToString:@"question"] || [name isEqualToString:@"exclamation"]) {
+        return [NSImage imageNamed:name];
+    }
+    if ([name isEqualToString:@"red"])    { return TintImage([NSImage imageNamed:@"black"], 0.81, 0.03, 0.00); }
+    if ([name isEqualToString:@"green"])  { return TintImage([NSImage imageNamed:@"black"], 0.50, 0.92, 0.05); }
+    if ([name isEqualToString:@"blue"])   { return TintImage([NSImage imageNamed:@"black"], 0.30, 0.60, 0.92); }
+    if ([name isEqualToString:@"orange"]) { return TintImage([NSImage imageNamed:@"black"], 1.00, 0.62, 0.00); }
+    if ([name isEqualToString:@"cyan"])   { return TintImage([NSImage imageNamed:@"black"], 0.15, 0.95, 0.80); }
+    if ([name isEqualToString:@"purple"]) { return TintImage([NSImage imageNamed:@"black"], 0.56, 0.07, 1.00); }
+    if ([name isEqualToString:@"yellow"]) { return TintImage([NSImage imageNamed:@"black"], 1.00, 0.90, 0.00); }
+    
+    return nil;
+}
+
+- (NSImage *)dotForHex:(NSString *)hexStr
+{
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"#[0-9a-fA-F]{6}" options:0 error:NULL];
+    NSTextCheckingResult *match = [regex firstMatchInString:hexStr options:0 range:NSMakeRange(0, [hexStr length])];
+    if (match) {
+        UInt32 hexInt = 0;
+        NSScanner *scanner = [NSScanner scannerWithString:[hexStr substringFromIndex:1]];
+        [scanner scanHexInt:&hexInt];
+        CGFloat r = ((CGFloat)((hexInt & 0xFF0000) >> 16))/255;
+        CGFloat g = ((CGFloat)((hexInt & 0x00FF00) >>  8))/255;
+        CGFloat b = ((CGFloat)((hexInt & 0x0000FF)      ))/255;
+        return TintImage([NSImage imageNamed:@"black"], r, g, b);
+    }
+    return nil;
 }
 
 - (id)osaImageBridge
