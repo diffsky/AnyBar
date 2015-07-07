@@ -21,7 +21,7 @@ This fork is compatible with OS X 10.10+ (the original AnyBar runs on 10.9).
 
 Version 0.1.3 + custom colors + text:
 
-<a href="https://s3.awsamazon.com/mowglii/AnyBar-0.1.3-colors-and-text.zip"><img src="AnyBar/Images.xcassets/AppIcon.appiconset/icon_128x128@2x.png?raw=true" style="width: 128px;" width=128/></a>
+<a href="https://s3.amazonaws.com/mowglii/AnyBar-0.1.3-colors-and-text.zip"><img src="AnyBar/Images.xcassets/AppIcon.appiconset/icon_128x128@2x.png?raw=true" style="width: 128px;" width=128/></a>
 
 ## Usage
 
