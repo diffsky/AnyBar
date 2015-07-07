@@ -13,9 +13,9 @@ tests: anybar
     for port in $(PORTS) ; do echo -n "orange" | nc -4u -w0 localhost $$port ; done && \
     sleep $(SLEEPT) && \
     echo -n " RGB " && \
-    echo -n "red" | nc -4u -w0 localhost 1738 && \
-    echo -n "green" | nc -4u -w0 localhost 1739 && \
-    echo -n "blue" | nc -4u -w0 localhost 1740 && \
+    echo -n "red Red" | nc -4u -w0 localhost 1738 && \
+    echo -n "green Green" | nc -4u -w0 localhost 1739 && \
+    echo -n "blue Blue" | nc -4u -w0 localhost 1740 && \
     sleep $(SLEEPT) && \
     echo -n " BLACK " && \
     for port in $(PORTS) ; do echo -n "black" | nc -4u -w0 localhost $$port ; done && \

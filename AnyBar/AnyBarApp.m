@@ -10,28 +10,16 @@
 
 @implementation AnyBarApp
 
-- (id)osaImage
+- (id)osaMessage
 {
     AppDelegate *delegate = (AppDelegate *)self.delegate;
-    return [delegate osaImageBridge];
+    return [delegate osaMessageBridge];
 }
 
-- (void)setOsaImage:(id)imgName
+- (void)setOsaMessage:(id)message
 {
     AppDelegate *delegate = (AppDelegate *)self.delegate;
-    [delegate setOsaImageBridge:imgName];
-}
-
-- (id)osaText
-{
-    AppDelegate *delegate = (AppDelegate *)self.delegate;
-    return [delegate osaTextBridge];
-}
-
-- (void)setOsaText:(id)text
-{
-    AppDelegate *delegate = (AppDelegate *)self.delegate;
-    [delegate setOsaTextBridge:text];
+    [delegate setOsaMessageBridge:message];
 }
 
 @end

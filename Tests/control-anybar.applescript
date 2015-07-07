@@ -1,3 +1,3 @@
-tell application "AnyBar" to set image name to "blue"
-tell application "AnyBar" to set current to get image name as Unicode text
+tell application "AnyBar" to set message to "blue Hello"
+tell application "AnyBar" to set current to get message as Unicode text
 display notification current

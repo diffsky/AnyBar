@@ -15,10 +15,8 @@
 // OSA Scripting bridge
 // @see AnyBarApp.h
 //
-- (id)osaImageBridge;
-- (void)setOsaImageBridge:(id)imgName;
-- (id)osaTextBridge;
-- (void)setOsaTextBridge:(id)imgName;
+- (id)osaMessageBridge;
+- (void)setOsaMessageBridge:(id)message;
 
 @end
 

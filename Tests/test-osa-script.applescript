@@ -1,7 +1,8 @@
 tell application "AnyBar"
-	set image name to "red"
-	set image name to "green"
-	set image name to "blue"
+	set message to "red"
+	set message to "green"
+	set message to "blue"
+	set message to "#33cc44 Looking good"
 	
 	set dmode to dark mode of the app delegate
 	set uport to udp port of the app delegate
@@ -10,7 +11,7 @@ tell application "AnyBar"
 		" " & version & Â
 		" (" & uport & ")" & Â
 		" dark mode: " & dmode & Â
-		" image name : " & image name Â
+		" message : " & message Â
 		as Unicode text
 	
 	display notification output

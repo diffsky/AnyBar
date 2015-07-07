@@ -8,8 +8,15 @@ end tell
 delay 3
 
 tell application "AnyBar.app"
-    set image name to "green"
-    display notification image name as Unicode text
+    set message to "green"
+    display notification message as Unicode text
+end tell
+
+delay 3
+
+tell application "AnyBar.app"
+    set message to "#ffcc33 A nice shade of orange"
+    display notification message as Unicode text
 end tell
 
 delay 3

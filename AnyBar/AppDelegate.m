@@ -26,7 +26,7 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 @implementation AppDelegate
 {
     int _udpPort;
-    BOOL _darkMode;
+    BOOL _dark;
     NSString *_text;
     NSString *_imageName;
     NSStatusItem *_statusItem;
@@ -109,7 +109,11 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 
 - (void)udpSocket:(GCDAsyncUdpSocket *)sock didReceiveData:(NSData *)data fromAddress:(NSData *)address withFilterContext:(id)filterContext
 {
-    NSString *message = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    [self processMessage:[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]];
+}
+
+- (void)processMessage:(NSString *)message
+{
     NSCharacterSet *whitespaceSet = [NSCharacterSet whitespaceAndNewlineCharacterSet];
     message = [message stringByTrimmingCharactersInSet:whitespaceSet];
 
@@ -147,7 +151,7 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 - (void)refreshDarkMode
 {
     NSString *mode = [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleInterfaceStyle"];
-    _darkMode = [mode isEqualToString:@"Dark"] ? YES : NO;
+    _dark = [mode isEqualToString:@"Dark"] ? YES : NO;
     [self setImage:_imageName];
 }
 
@@ -164,10 +168,10 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     if (!image) {
         image = [self dotForHex:name];
     }
-    if (_darkMode && !image) {
+    if (_dark && !image) {
         image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"_alt@2x"]]];
     }
-    if (_darkMode && !image) {
+    if (_dark && !image) {
         image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"_alt"]]];
     }
     if (!image) {
@@ -226,30 +230,20 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     return nil;
 }
 
-- (id)osaImageBridge
+- (id)osaMessageBridge
 {
-    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), _imageName);
-    return _imageName;
+    NSString *message = _imageName;
+    if (_text != nil && ![_text isEqualToString:@""]) {
+        message = [NSString stringWithFormat:@"%@ %@", _imageName, _text];
+    }
+    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), message);
+    return message;
 }
 
-- (void)setOsaImageBridge:(id)imgName
+- (void)setOsaMessageBridge:(id)message
 {
-    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), imgName);
-    _imageName = (NSString *)imgName;
-    [self setImage:_imageName];
-}
-
-- (id)osaTextBridge
-{
-    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), _text);
-    return _text;
-}
-
-- (void)setOsaTextBridge:(id)text
-{
-    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), text);
-    _text = (NSString *)text;
-    [_statusItem.button setTitle:text];
+    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), message);
+    [self processMessage:message];
 }
 
 @end

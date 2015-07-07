@@ -15,8 +15,8 @@
             <property name="app delegate" code="Adel" type="delegate" access="rw" description="An Application's delegate.">
                 <cocoa key="delegate"/>
             </property>
-            <property name="image name" code="Imgn" type="text" access="rw" description="The image's name for the indication.">
-                <cocoa key="osaImage"/>
+            <property name="message" code="Imgn" type="text" access="rw" description="The message (image [text]) for the indication.">
+                <cocoa key="osaMessage"/>
             </property>
         </class>
         
