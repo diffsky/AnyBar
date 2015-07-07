@@ -213,10 +213,10 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 - (NSImage *)dotForHex:(NSString *)hexStr
 {
     NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"#[0-9a-fA-F]{6}" options:0 error:NULL];
-    NSTextCheckingResult *match = [regex firstMatchInString:hexStr options:0 range:NSMakeRange(0, [hexStr length])];
-    if (match) {
+    
+    if ([regex firstMatchInString:hexStr options:0 range:NSMakeRange(0, [hexStr length])]) {
         UInt32 hexInt = 0;
-        NSScanner *scanner = [NSScanner scannerWithString:[hexStr substringFromIndex:1]];
+        NSScanner *scanner = [NSScanner scannerWithString:[hexStr substringFromIndex:1]]; // skip #
         [scanner scanHexInt:&hexInt];
         CGFloat r = ((CGFloat)((hexInt & 0xFF0000) >> 16))/255;
         CGFloat g = ((CGFloat)((hexInt & 0x00FF00) >>  8))/255;
