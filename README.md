@@ -1,18 +1,27 @@
-# AnyBar: OS X menubar status indicator
+# AnyBar + custom colors + text: OS X menubar status indicator
 
-AnyBar is a small indicator for your menubar that does one simple thing: it displays color dot. What color means is up to you. When to change color is also up to you.
+This is a fork of [Nikita Prokopov's](https://github.com/tonsky) excellent [AnyBar](https://github.com/tonsky/AnyBar). 
+
+> AnyBar is a small indicator for your menubar that does one simple thing: it displays color dot. What color means is up to you. When to change color is also up to you.
 
 <img src="AnyBar/Resources/screenshot.png?raw=true" />
 
+This fork adds:
+
+- the ability to use custom colors
+- the ability to add an optional text message
+- automatic support for Yosemite's Dark mode for custom images
+- connection error messages reported in the AnyBar menu
+
+AnyBar's AppleScript property is changed from `image name` to `message` to better reflect the ability to set both an image and text message.
+
+This fork is compatible with OS X 10.10+ (the original AnyBar runs on 10.9).
+
 ## Download
 
-Version 0.1.3:
+Version 0.1.3 + custom colors + text:
 
-<a href="https://github.com/tonsky/AnyBar/releases/download/0.1.3/AnyBar-0.1.3.zip"><img src="AnyBar/Images.xcassets/AppIcon.appiconset/icon_128x128@2x.png?raw=true" style="width: 128px;" width=128/></a>
-
-Or using [Homebrew-cask](http://caskroom.io):
-
-    brew cask install anybar
+<a href="https://s3.awsamazon.com/mowglii/AnyBar-0.1.3-colors-and-text.zip"><img src="AnyBar/Images.xcassets/AppIcon.appiconset/icon_128x128@2x.png?raw=true" style="width: 128px;" width=128/></a>
 
 ## Usage
 
@@ -28,7 +37,19 @@ Once launched, send it a message and it will change a color:
 echo -n "black" | nc -4u -w0 localhost 1738
 ```
 
-Following commands change color:
+You can set a custom color:
+
+```sh
+echo -n "#ffcc33" | nc -4u -w0 localhost 1738
+```
+
+And an optional text message too:
+
+```sh
+echo -n "#ffcc33 A nice shade of orange" | nc -4u -w0 localhost 1738
+```
+
+The following built-in commands change color:
 
 
 <img src="AnyBar/Resources/white@2x.png?raw=true" width=19 /> `white`  
@@ -45,6 +66,7 @@ Following commands change color:
 
 And one special command forces AnyBar to quit: `quit`
 
+
 ## Alternative clients
 
 Bash alias:
@@ -54,6 +76,7 @@ $ function anybar { echo -n $1 | nc -4u -w0 localhost ${2:-1738}; }
 
 $ anybar red
 $ anybar green 1739
+$ anybar "#ffcc33 A nice shade of orange" 1740
 ```
 
 Go:
@@ -96,9 +119,9 @@ Erlang:
 AppleScript:
 
 ```
-tell application "AnyBar" to set image name to "blue"
+tell application "AnyBar" to set message to "green Success"
 
-tell application "AnyBar" to set current to get image name as Unicode text
+tell application "AnyBar" to set current to get message as Unicode text
 display notification current
 ```
 
@@ -124,7 +147,9 @@ ANYBAR_PORT=1740 open -n ./AnyBar.app
 
 ## Custom images
 
-AnyBar can use user-local images if you put them under `~/.AnyBar`. E.g. if you have `~/.AnyBar/square@2x.png` present, send `square` to 1738 and it will be displayed. Images should be 19×19px (or twice that for retina).
+AnyBar can use user-local images if you put them under `~/.AnyBar`. E.g. if you have `~/.AnyBar/square@2x.png` present, send `square` to 1738 and it will be displayed. Images should be 19×19px (or twice that for retina). 
+
+If the image name ends in `Template`, it will automatically work in Yosemite's Light and Dark modes without the need for an `_alt` version.
 
 ## Ports
 
