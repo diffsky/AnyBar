@@ -23,47 +23,43 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     }];
 }
 
-@interface AppDelegate ()
-
-@property (nonatomic) int udpPort;
-@property (nonatomic) BOOL darkMode;
-@property (nonatomic) NSString *text;
-@property (nonatomic) NSString *imageName;
-@property (nonatomic) NSStatusItem *statusItem;
-@property (nonatomic) GCDAsyncUdpSocket *udpSocket;
-
-@end
-
 @implementation AppDelegate
+{
+    int _udpPort;
+    BOOL _darkMode;
+    NSString *_text;
+    NSString *_imageName;
+    NSStatusItem *_statusItem;
+    GCDAsyncUdpSocket *_udpSocket;
+}
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
-    self.udpPort = -1;
+    _udpPort = -1;
     
-    self.imageName = @"white";
-    self.text = @"";
+    _imageName = @"white";
+    _text = @"";
     
-    self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
-    self.statusItem.button.font = [NSFont systemFontOfSize:12];
-    self.statusItem.menu = [NSMenu new];
+    _statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
+    _statusItem.button.font = [NSFont systemFontOfSize:12];
+    _statusItem.menu = [NSMenu new];
 
     @try {
-        self.udpPort = [self getUdpPort];
-        self.udpSocket = [self initializeUdpSocket];
+        _udpPort = [self getUdpPort];
+        _udpSocket = [self initializeUdpSocket];
     }
     @catch (NSException *ex) {
         NSLog(@"Error: %@: %@", ex.name, ex.reason);
-        self.imageName = @"exclamation";
-        [self.statusItem.menu addItemWithTitle:ex.name action:nil keyEquivalent:@""];
-        [self.statusItem.menu addItemWithTitle:ex.reason action:nil keyEquivalent:@""];
-        [self.statusItem.menu addItem:[NSMenuItem separatorItem]];
+        _imageName = @"exclamation";
+        [_statusItem.menu addItemWithTitle:ex.name action:nil keyEquivalent:@""];
+        [_statusItem.menu addItemWithTitle:ex.reason action:nil keyEquivalent:@""];
+        [_statusItem.menu addItem:[NSMenuItem separatorItem]];
     }
     @finally {
-        if (self.udpPort >= 0 && self.udpPort <= 65535) {
-            NSString *portTitle = [NSString stringWithFormat:@"UDP port: %d", self.udpPort];
-            [self.statusItem.menu addItemWithTitle:portTitle action:nil keyEquivalent:@""];
+        if (_udpPort >= 0 && _udpPort <= 65535) {
+            [_statusItem.menu addItemWithTitle:[NSString stringWithFormat:@"UDP port: %d", _udpPort] action:nil keyEquivalent:@""];
         }
-        [self.statusItem.menu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@""];
+        [_statusItem.menu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@""];
     }
 
     [self refreshDarkMode];
@@ -72,11 +68,11 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification
 {
-    [self.udpSocket close];
-    self.udpSocket = nil;
+    [_udpSocket close];
+    _udpSocket = nil;
 
-    [[NSStatusBar systemStatusBar] removeStatusItem:self.statusItem];
-    self.statusItem = nil;
+    [[NSStatusBar systemStatusBar] removeStatusItem:_statusItem];
+    _statusItem = nil;
 }
 
 - (int)getUdpPort
@@ -102,11 +98,11 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     GCDAsyncUdpSocket *udpSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:dispatch_get_main_queue()];
 
     NSError *error = nil;
-    if ([udpSocket bindToPort:self.udpPort error:&error] == NO) {
-        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Binding to port %d failed", self.udpPort] userInfo:@{ @"error":error }]);
+    if ([udpSocket bindToPort:_udpPort error:&error] == NO) {
+        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Binding to port %d failed", _udpPort] userInfo:@{ @"error":error }]);
     }
     if ([udpSocket beginReceiving:&error] == NO) {
-        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Receiving from port %d failed", self.udpPort] userInfo:@{ @"error":error }]);
+        @throw([NSException exceptionWithName:@"UDP Exception" reason:[NSString stringWithFormat:@"Receiving from port %d failed", _udpPort] userInfo:@{ @"error":error }]);
     }
     return udpSocket;
 }
@@ -118,20 +114,20 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     message = [message stringByTrimmingCharactersInSet:whitespaceSet];
 
     if (message == nil || [message isEqualToString:@""]) {
-        NSLog(@"Empty message received on port %d.", self.udpPort);
+        NSLog(@"Empty message received on port %d.", _udpPort);
         return;
     }
     
     NSInteger locationOfFirstSpace = [message rangeOfString:@" "].location;
     NSString *imageName = message;
-    NSString *text = @"";
-    self.statusItem.button.imagePosition = NSImageOnly;
+    _text = @"";
+    _statusItem.button.imagePosition = NSImageOnly;
     
     if (locationOfFirstSpace != NSNotFound) {
         imageName = [message substringToIndex:locationOfFirstSpace];
-        text = [message substringFromIndex:locationOfFirstSpace];
-        text = [text stringByTrimmingCharactersInSet:whitespaceSet];
-        self.statusItem.button.imagePosition = NSImageLeft;
+        _text = [message substringFromIndex:locationOfFirstSpace];
+        _text = [_text stringByTrimmingCharactersInSet:whitespaceSet];
+        _statusItem.button.imagePosition = NSImageLeft;
     }
     
     if ([imageName isEqualToString:@"quit"]) {
@@ -141,19 +137,18 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     // Hack to make statusItem properly resize when a short text message
     // is set after a long one. Without this, statusItem will stay at the
     // wider size of the long message until the next time it is updated.
-    [self.statusItem.button setAttributedAlternateTitle:nil];
+    [_statusItem.button setAttributedAlternateTitle:nil];
     
     [self setImage:imageName];
-    [self setText:text];
-    [self.statusItem.button setTitle:text];
-    [self.statusItem.button setAttributedAlternateTitle:[[NSAttributedString alloc] initWithString:text attributes:@{ NSForegroundColorAttributeName: NSColor.whiteColor, NSFontAttributeName: [NSFont systemFontOfSize:12] }]];
+    [_statusItem.button setTitle:_text];
+    [_statusItem.button setAttributedAlternateTitle:[[NSAttributedString alloc] initWithString:_text attributes:@{ NSForegroundColorAttributeName: NSColor.whiteColor, NSFontAttributeName: [NSFont systemFontOfSize:12] }]];
 }
 
 - (void)refreshDarkMode
 {
     NSString *mode = [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleInterfaceStyle"];
-    self.darkMode = [mode isEqualToString:@"Dark"] ? YES : NO;
-    [self setImage:self.imageName];
+    _darkMode = [mode isEqualToString:@"Dark"] ? YES : NO;
+    [self setImage:_imageName];
 }
 
 - (NSString *)homedirImagePath:(NSString *)name
@@ -169,10 +164,10 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     if (!image) {
         image = [self dotForHex:name];
     }
-    if (self.darkMode && !image) {
+    if (_darkMode && !image) {
         image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"_alt@2x"]]];
     }
-    if (self.darkMode && !image) {
+    if (_darkMode && !image) {
         image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"_alt"]]];
     }
     if (!image) {
@@ -193,9 +188,9 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
         [image setTemplate:YES];
     }
     
-    self.statusItem.button.image = image;
-    self.statusItem.button.alternateImage = TintImage(image, 1, 1, 1);
-    self.imageName = name;
+    _statusItem.button.image = image;
+    _statusItem.button.alternateImage = TintImage(image, 1, 1, 1);
+    _imageName = name;
 }
 
 - (NSImage *)dotForBuiltIn:(NSString *)name
@@ -233,28 +228,28 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 
 - (id)osaImageBridge
 {
-    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), self.imageName);
-    return self.imageName;
+    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), _imageName);
+    return _imageName;
 }
 
 - (void)setOsaImageBridge:(id)imgName
 {
     NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), imgName);
-    self.imageName = (NSString *)imgName;
-    [self setImage:self.imageName];
+    _imageName = (NSString *)imgName;
+    [self setImage:_imageName];
 }
 
 - (id)osaTextBridge
 {
-    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), self.text);
-    return self.text;
+    NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), _text);
+    return _text;
 }
 
 - (void)setOsaTextBridge:(id)text
 {
     NSLog(@"OSA Event: %@ - %@", NSStringFromSelector(_cmd), text);
-    self.text = (NSString *)text;
-    [self.statusItem.button setTitle:text];
+    _text = (NSString *)text;
+    [_statusItem.button setTitle:text];
 }
 
 @end
