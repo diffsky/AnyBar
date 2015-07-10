@@ -5,12 +5,14 @@
 //  Created by Nikita Prokopov on 14/02/15.
 //  Copyright (c) 2015 Nikita Prokopov. All rights reserved.
 //
+//  Modified by Sanjay Madan on 7-Jun-2015
 
 #import "AppDelegate.h"
 
 static NSString * const kAnyBarPortEnvironmentVariable = @"ANYBAR_PORT";
 static const int kAnyBarDefaultPort = 1738;
 
+// Tint `baseImage` with color (r,g,b) and return new image.
 NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 {
     return [NSImage imageWithSize:NSMakeSize(19, 19) flipped:NO drawingHandler:^BOOL(NSRect dstRect) {
@@ -33,10 +35,16 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     GCDAsyncUdpSocket *_udpSocket;
 }
 
+#pragma mark - INIT / DEINIT
+
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
-    _udpPort = -1;
+    // Init statusItem with white image and no text message.
+    // Init UDP connection on default port or accoring to ANYBAR_PORT
+    // environment variable. If there is an error setting up UDP,
+    // display the error in the statusItem's menu and show the (!) icon.
     
+    _udpPort = -1;
     _imageName = @"white";
     _text = @"";
     
@@ -62,6 +70,7 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
         [_statusItem.menu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@""];
     }
 
+    // Set the initial image based on the mode (dark/light) and watch for mode changes.
     [self refreshDarkMode];
     [[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(refreshDarkMode) name:@"AppleInterfaceThemeChangedNotification" object:nil];
 }
@@ -75,11 +84,19 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     _statusItem = nil;
 }
 
+# pragma mark - SETUP UDP CONNECTION
+
 - (int)getUdpPort
 {
+    // Get the UDP port from `kAnyBarPortEnvironmentVariable` or use
+    // `kAnyBarDefaultPort` if it doesn't exist.
+    
     NSString *envStr = [[[NSProcessInfo processInfo] environment] objectForKey:kAnyBarPortEnvironmentVariable];
     
     if (!envStr) { return kAnyBarDefaultPort; }
+    
+    // We got a string from `kAnyBarPortEnvironmentVariable` so attempt
+    // to turn it into an int and confirm it's in the valid port range.
     
     int port = -1;
     NSScanner *scanner = [NSScanner scannerWithString:envStr];
@@ -95,6 +112,8 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 
 - (GCDAsyncUdpSocket *)initializeUdpSocket
 {
+    // Initialize the UDP connection on `_udpPort`.
+    
     GCDAsyncUdpSocket *udpSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:dispatch_get_main_queue()];
 
     NSError *error = nil;
@@ -112,6 +131,8 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     [self processMessage:[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]];
 }
 
+#pragma mark - PROCESS MESSAGE
+
 - (void)processMessage:(NSString *)message
 {
     NSCharacterSet *whitespaceSet = [NSCharacterSet whitespaceAndNewlineCharacterSet];
@@ -122,12 +143,16 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
         return;
     }
     
+    // Bisect `message` on the first whitespace char. Treat the first part
+    // as the image and the rest as the text message. We always work with
+    // whitespace-trimmmed strings. The text message is optional.
+    
     NSInteger locationOfFirstSpace = [message rangeOfString:@" "].location;
     NSString *imageName = message;
     _text = @"";
     _statusItem.button.imagePosition = NSImageOnly;
     
-    if (locationOfFirstSpace != NSNotFound) {
+    if (locationOfFirstSpace != NSNotFound) { // There is a text message
         imageName = [message substringToIndex:locationOfFirstSpace];
         _text = [message substringFromIndex:locationOfFirstSpace];
         _text = [_text stringByTrimmingCharactersInSet:whitespaceSet];
@@ -145,8 +170,13 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     
     [self setImage:imageName];
     [_statusItem.button setTitle:_text];
+    // Because AnyBar can display *colored* icons in the menu bar and not
+    // just OSX-standard monochrome template images, we must manually set
+    // the title (and image, see `setImage:`) for the highlighted state.
     [_statusItem.button setAttributedAlternateTitle:[[NSAttributedString alloc] initWithString:_text attributes:@{ NSForegroundColorAttributeName: NSColor.whiteColor, NSFontAttributeName: [NSFont systemFontOfSize:12] }]];
 }
+
+#pragma mark - PROCESS IMAGE
 
 - (void)refreshDarkMode
 {
@@ -160,45 +190,57 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     return [NSString stringWithFormat:@"%@/%@/%@.png", NSHomeDirectory(), @".AnyBar", name];
 }
 
-- (void)setImage:(NSString *)name
+- (void)setImage:(NSString *)imageName
 {
+    // Set `imageName` as the statusItem's image.
+    // First see if `imageName` matches the set of built-in images.
+    // If not, see if it matches a hex color (#RRGGBB).
+    // If not, see if it matches an image in the user's ~/.AnyBar folder.
+    // If not, display the (?) image.
+    
     NSImage *image = nil;
     
-    image = [self dotForBuiltIn:name];
+    image = [self dotForBuiltIn:imageName];
     if (!image) {
-        image = [self dotForHex:name];
+        image = [self dotForHex:imageName];
     }
     if (_dark && !image) {
-        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"_alt@2x"]]];
+        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[imageName stringByAppendingString:@"_alt@2x"]]];
     }
     if (_dark && !image) {
-        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"_alt"]]];
+        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[imageName stringByAppendingString:@"_alt"]]];
     }
     if (!image) {
-        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[name stringByAppendingString:@"@2x"]]];
+        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:[imageName stringByAppendingString:@"@2x"]]];
     }
     if (!image) {
-        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:name]];
+        image = [[NSImage alloc] initWithContentsOfFile:[self homedirImagePath:imageName]];
     }
     if (!image) {
         image = [NSImage imageNamed:@"question"];
         [image setTemplate:YES];
-        NSLog(@"Cannot find image '%@'", name);
+        NSLog(@"Cannot find image '%@'", imageName);
     }
     
     // Certain images are template images so they work automatically in dark mode.
-    if ([name isEqualToString:@"white"] || [name isEqualToString:@"black"] ||
-        [name isEqualToString:@"question"] || [name hasSuffix:@"Template"]) {
+    if ([imageName isEqualToString:@"white"] || [imageName isEqualToString:@"black"] ||
+        [imageName isEqualToString:@"question"] || [imageName hasSuffix:@"Template"]) {
         [image setTemplate:YES];
     }
     
     _statusItem.button.image = image;
+    // Because AnyBar can display *colored* icons in the menu bar and not
+    // just OSX-standard monochrome template images, we must manually set
+    // the image (and title, see `processMessage:`) for the highlighted state.
     _statusItem.button.alternateImage = TintImage(image, 1, 1, 1);
-    _imageName = name;
+    _imageName = imageName;
 }
 
 - (NSImage *)dotForBuiltIn:(NSString *)name
 {
+    // Use the black dot image as a template to create built-in colored dot images.
+    // This method assumes `name` has no whitespace.
+
     if ([name isEqualToString:@"white"] || [name isEqualToString:@"black"] ||
         [name isEqualToString:@"question"] || [name isEqualToString:@"exclamation"]) {
         return [NSImage imageNamed:name];
@@ -216,6 +258,9 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
 
 - (NSImage *)dotForHex:(NSString *)hexStr
 {
+    // Use the black dot image as a template to create arbitrary colored dot images.
+    // This method assumes `hexStr` (#RRGGBB) has no whitespace.
+
     NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"#[0-9a-fA-F]{6}" options:0 error:NULL];
     
     if ([regex firstMatchInString:hexStr options:0 range:NSMakeRange(0, [hexStr length])]) {
@@ -229,6 +274,8 @@ NSImage* TintImage(NSImage *baseImage, CGFloat r, CGFloat g, CGFloat b)
     }
     return nil;
 }
+
+#pragma mark - APPLESCRIPT
 
 - (id)osaMessageBridge
 {
